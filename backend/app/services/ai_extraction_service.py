@@ -1,5 +1,6 @@
-"""AI-powered financial data extraction using Claude with tool use and prompt caching."""
-from app.integrations.claude.client import get_claude_client
+"""AI-powered financial data extraction using OpenAI function calling."""
+import json
+from app.integrations.claude.client import get_ai_client
 from app.integrations.claude.prompts import EXTRACTION_SYSTEM_PROMPT, EXTRACTION_TOOL
 from app.config import get_settings
 
@@ -14,11 +15,11 @@ def extract_financial_data(
     attachment_texts: list[str] | None = None,
 ) -> dict:
     """
-    Call Claude with tool use to extract structured financial data from an email.
-    Returns the tool input dict with extracted fields + confidence_score.
+    Call OpenAI with function calling to extract structured financial data from an email.
+    Returns the function arguments dict with extracted fields + confidence_score.
     Confidence < 0.7 → caller should flag for manual review.
     """
-    client = get_claude_client()
+    client = get_ai_client()
 
     attachment_section = ""
     if attachment_texts:
@@ -32,24 +33,22 @@ def extract_financial_data(
         f"{attachment_section[:4000]}"
     )
 
-    response = client.messages.create(
-        model=settings.claude_model,
-        max_tokens=settings.claude_max_tokens,
-        system=[
-            {
-                "type": "text",
-                "text": EXTRACTION_SYSTEM_PROMPT,
-                "cache_control": {"type": "ephemeral"},  # prompt caching — saves tokens on bulk sync
-            }
+    response = client.chat.completions.create(
+        model=settings.openai_model,
+        max_tokens=settings.openai_max_tokens,
+        messages=[
+            {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
+            {"role": "user", "content": user_message},
         ],
         tools=[EXTRACTION_TOOL],
-        tool_choice={"type": "any"},
-        messages=[{"role": "user", "content": user_message}],
+        tool_choice={"type": "function", "function": {"name": "extract_financial_data"}},
     )
 
-    for block in response.content:
-        if block.type == "tool_use" and block.name == "extract_financial_data":
-            return block.input
+    message = response.choices[0].message
+    if message.tool_calls:
+        call = message.tool_calls[0]
+        if call.function.name == "extract_financial_data":
+            return json.loads(call.function.arguments)
 
     return {"financial_type": "UNKNOWN", "confidence_score": 0.0}
 

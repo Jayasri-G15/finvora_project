@@ -5,7 +5,7 @@ from sqlalchemy import select, func, and_
 
 from app.models.report import Report, ReportType, ReportStatus
 from app.models.transaction import Transaction, TransactionType
-from app.integrations.claude.client import get_claude_client
+from app.integrations.claude.client import get_ai_client
 from app.integrations.claude.prompts import REPORT_SYSTEM_PROMPT
 from app.config import get_settings
 
@@ -64,15 +64,17 @@ async def generate_report(
             f"Report Type: {report_type.value}\n"
         )
 
-        client = get_claude_client()
-        response = client.messages.create(
-            model=settings.claude_model,
-            max_tokens=settings.claude_max_tokens,
-            system=[{"type": "text", "text": REPORT_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
-            messages=[{"role": "user", "content": f"Generate a {report_type.value} report:\n\n{data_summary}"}],
+        client = get_ai_client()
+        response = client.chat.completions.create(
+            model=settings.openai_model,
+            max_tokens=settings.openai_max_tokens,
+            messages=[
+                {"role": "system", "content": REPORT_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Generate a {report_type.value} report:\n\n{data_summary}"},
+            ],
         )
 
-        report.ai_generated_content = response.content[0].text
+        report.ai_generated_content = response.choices[0].message.content
         report.status = ReportStatus.COMPLETED
 
     except Exception as exc:

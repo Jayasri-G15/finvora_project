@@ -34,10 +34,10 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 60
     jwt_refresh_token_expire_days: int = 30
 
-    # Claude / Anthropic
-    anthropic_api_key: str = ""
-    claude_model: str = "claude-sonnet-4-6"
-    claude_max_tokens: int = 4096
+    # OpenAI
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o"
+    openai_max_tokens: int = 4096
 
     # File storage
     upload_dir: str = "/app/uploads"

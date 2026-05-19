@@ -1,5 +1,5 @@
-"""Anthropic SDK client singleton with prompt caching enabled."""
-import anthropic
+"""OpenAI SDK client singleton."""
+from openai import OpenAI
 from functools import lru_cache
 from app.config import get_settings
 
@@ -7,5 +7,5 @@ settings = get_settings()
 
 
 @lru_cache
-def get_claude_client() -> anthropic.Anthropic:
-    return anthropic.Anthropic(api_key=settings.anthropic_api_key)
+def get_ai_client() -> OpenAI:
+    return OpenAI(api_key=settings.openai_api_key)
