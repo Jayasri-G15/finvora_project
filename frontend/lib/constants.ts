@@ -1,0 +1,30 @@
+export const ROUTES = {
+  LOGIN: "/login",
+  CALLBACK: "/auth/callback",
+  DASHBOARD: "/dashboard",
+  TRANSACTIONS: "/transactions",
+  INVOICES: "/invoices",
+  VENDORS: "/vendors",
+  PAYMENTS: "/payments",
+  BUDGETS: "/budgets",
+  APPROVALS: "/approvals",
+  ALERTS: "/alerts",
+  REPORTS: "/reports",
+  EMAILS: "/emails",
+  SETTINGS: "/settings",
+} as const;
+
+export const STATUS_COLORS = {
+  DRAFT: "muted",
+  PENDING_APPROVAL: "warning",
+  APPROVED: "info",
+  REJECTED: "danger",
+  PAID: "success",
+  OVERDUE: "danger",
+  VOIDED: "muted",
+  PENDING: "warning",
+  CLEARED: "success",
+  RECONCILED: "success",
+  CREDIT: "success",
+  DEBIT: "danger",
+} as const;
