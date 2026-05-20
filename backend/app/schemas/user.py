@@ -10,6 +10,7 @@ class UserRead(BaseModel):
     picture_url: str | None
     role: str
     is_active: bool
+    organization_id: str | None
     created_at: datetime
 
     model_config = {"from_attributes": True}

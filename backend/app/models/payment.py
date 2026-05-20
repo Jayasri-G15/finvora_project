@@ -28,6 +28,7 @@ class Payment(Base, TimestampMixin):
     __tablename__ = "payments"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    organization_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     invoice_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     vendor_id: Mapped[str | None] = mapped_column(String(36), nullable=True)

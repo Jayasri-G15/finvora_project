@@ -29,6 +29,7 @@ class ApprovalWorkflow(Base, TimestampMixin):
     __tablename__ = "approval_workflows"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    organization_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     entity_type: Mapped[EntityType] = mapped_column(SAEnum(EntityType), nullable=False)
     entity_id: Mapped[str] = mapped_column(String(36), nullable=False)

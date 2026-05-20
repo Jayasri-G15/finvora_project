@@ -1,176 +1,140 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import Link from "next/link";
 import api from "@/lib/api";
 import { EmailMessage } from "@/types/api";
 import { formatRelative } from "@/lib/formatters";
-import { cn } from "@/lib/utils";
-import { AlertCircle, CheckCircle, Mail, Paperclip, Info } from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ROUTES } from "@/lib/constants";
+import { AlertCircle, CheckCircle2, Mail, Paperclip, Info } from "lucide-react";
 
-const TYPE_STYLE: Record<string, string> = {
-  INVOICE: "badge-info",
-  PAYMENT: "badge-success",
-  GST: "badge-warning",
-  REIMBURSEMENT: "badge-warning",
-  VENDOR_BILL: "badge-danger",
-  UNKNOWN: "badge-muted",
+const TYPE_VARIANT: Record<string, "info" | "success" | "warning" | "danger" | "muted"> = {
+  INVOICE: "info",
+  PAYMENT: "success",
+  GST: "warning",
+  REIMBURSEMENT: "warning",
+  VENDOR_BILL: "danger",
+  UNKNOWN: "muted",
 };
 
 export default function EmailsPage() {
-  const { data: messages = [], isLoading } = useQuery<EmailMessage[]>({
+  const { data, isLoading } = useQuery<{ items: EmailMessage[] }>({
     queryKey: ["emails"],
     queryFn: () => api.get("/emails/?limit=100").then((r) => r.data),
     refetchInterval: 60_000,
   });
 
+  const messages = data?.items || (Array.isArray(data) ? data : []);
   const processed = messages.filter((m) => m.ai_processed).length;
   const needsReview = messages.filter((m) => m.needs_review).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-display font-bold text-white">
-            Financial Emails
-          </h1>
-          <p className="text-white/40 text-sm mt-1">
+          <h1 className="text-xl font-bold text-[hsl(var(--text-primary))]">Financial Emails</h1>
+          <p className="text-sm text-[hsl(var(--text-muted))] mt-0.5">
             {messages.length} emails · {processed} processed · {needsReview} need review
           </p>
         </div>
       </div>
 
-      {/* n8n info banner */}
-      <div className="flex items-center gap-3 glass-card px-4 py-3 border border-brand/20 text-sm text-white/60">
-        <Info className="w-4 h-4 text-brand flex-shrink-0" />
+      {/* Info banner */}
+      <div className="flex items-center gap-3 card px-4 py-3 border-[hsl(var(--accent)/0.2)] text-sm text-[hsl(var(--text-secondary))]">
+        <Info className="w-4 h-4 text-[hsl(var(--accent))] flex-shrink-0" />
         <span>
-          Emails are imported automatically via your{" "}
-          <a
-            href="http://localhost:5678"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-brand hover:underline"
-          >
-            n8n workflow
-          </a>
-          . New financial emails appear within 5 minutes of arrival.
+          Emails are imported automatically via your n8n workflow. New financial emails appear within 5 minutes.{" "}
+          <Link href={`${ROUTES.SETTINGS}?tab=gmail`} className="text-[hsl(var(--accent))] hover:underline">Configure in Settings →</Link>
         </span>
       </div>
 
-      {/* Summary cards */}
+      {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: "Total Fetched", value: messages.length, icon: Mail, color: "text-indigo-400" },
-          { label: "AI Processed", value: processed, icon: CheckCircle, color: "text-emerald-400" },
-          { label: "Need Review", value: needsReview, icon: AlertCircle, color: "text-amber-400" },
+          { label: "Total fetched", value: messages.length, icon: Mail, color: "text-[hsl(var(--accent))]" },
+          { label: "AI processed", value: processed, icon: CheckCircle2, color: "text-[hsl(var(--success))]" },
+          { label: "Needs review", value: needsReview, icon: AlertCircle, color: "text-[hsl(var(--warning))]" },
         ].map((s) => (
-          <div key={s.label} className="glass-card p-4 flex items-center gap-4">
-            <s.icon className={cn("w-8 h-8", s.color)} />
+          <div key={s.label} className="card p-4 flex items-center gap-3">
+            <s.icon className={`w-7 h-7 ${s.color}`} />
             <div>
-              <div className="text-2xl font-bold text-white">{s.value}</div>
-              <div className="text-xs text-white/40">{s.label}</div>
+              <p className="text-xl font-bold text-[hsl(var(--text-primary))]">{s.value}</p>
+              <p className="text-xs text-[hsl(var(--text-muted))]">{s.label}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* Email list */}
-      <div className="glass-card divide-y divide-white/5">
+      <div className="card">
         {isLoading
           ? Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="p-4 flex gap-4">
-                <div className="w-8 h-8 rounded shimmer flex-shrink-0" />
+              <div key={i} className="p-4 flex gap-3 border-b border-[hsl(var(--border-subtle))]">
+                <div className="w-8 h-8 rounded-lg shimmer flex-shrink-0" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 shimmer rounded w-3/4" />
-                  <div className="h-3 shimmer rounded w-1/2" />
+                  <div className="h-4 shimmer rounded-lg w-3/4" />
+                  <div className="h-3 shimmer rounded-lg w-1/2" />
                 </div>
               </div>
             ))
-          : messages.map((msg) => (
-              <motion.div
-                key={msg.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="p-4 flex items-start gap-4 hover:bg-white/3 transition-colors"
-              >
-                <div
-                  className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5",
-                    msg.needs_review
-                      ? "bg-amber-500/10"
-                      : msg.ai_processed
-                      ? "bg-emerald-500/10"
-                      : "bg-white/5"
-                  )}
-                >
-                  {msg.needs_review ? (
-                    <AlertCircle className="w-4 h-4 text-amber-400" />
-                  ) : msg.ai_processed ? (
-                    <CheckCircle className="w-4 h-4 text-emerald-400" />
-                  ) : (
-                    <Mail className="w-4 h-4 text-white/30" />
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium text-white truncate">{msg.subject}</p>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {msg.has_attachments && <Paperclip className="w-3.5 h-3.5 text-white/30" />}
-                      {msg.financial_type && (
-                        <span
-                          className={cn(
-                            "text-xs px-2 py-0.5 rounded-full border",
-                            TYPE_STYLE[msg.financial_type] || "badge-muted"
-                          )}
-                        >
-                          {msg.financial_type}
-                        </span>
-                      )}
-                    </div>
+          : messages.length === 0 ? (
+            <EmptyState
+              icon={<Mail className="w-6 h-6" />}
+              title="No financial emails yet"
+              description="Configure your n8n Gmail workflow to start automatically importing financial emails."
+              action={{ label: "Gmail settings", onClick: () => {} }}
+            />
+          ) : messages.map((msg) => (
+            <div key={msg.id} className="p-4 flex items-start gap-3 border-b border-[hsl(var(--border-subtle))] last:border-0 hover:bg-[hsl(var(--bg-hover))] transition-colors">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                msg.needs_review ? "bg-[hsl(var(--warning-muted))]" : msg.ai_processed ? "bg-[hsl(var(--success-muted))]" : "bg-[hsl(var(--bg-elevated))]"
+              }`}>
+                {msg.needs_review ? (
+                  <AlertCircle className="w-4 h-4 text-[hsl(var(--warning))]" />
+                ) : msg.ai_processed ? (
+                  <CheckCircle2 className="w-4 h-4 text-[hsl(var(--success))]" />
+                ) : (
+                  <Mail className="w-4 h-4 text-[hsl(var(--text-muted))]" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium text-[hsl(var(--text-primary))] truncate">{msg.subject}</p>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {msg.has_attachments && <Paperclip className="w-3.5 h-3.5 text-[hsl(var(--text-muted))]" />}
+                    {msg.financial_type && msg.financial_type !== "UNKNOWN" && (
+                      <Badge variant={TYPE_VARIANT[msg.financial_type] || "muted"}>{msg.financial_type}</Badge>
+                    )}
                   </div>
-                  <p className="text-xs text-white/40 mt-0.5">
-                    {msg.sender} · {formatRelative(msg.received_at)}
-                  </p>
-                  {msg.confidence_score !== null && (
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <div className="flex-1 h-1 bg-white/10 rounded-full max-w-24">
-                        <div
-                          className={cn(
-                            "h-full rounded-full",
-                            msg.confidence_score >= 0.9
-                              ? "bg-emerald-400"
-                              : msg.confidence_score >= 0.7
-                              ? "bg-amber-400"
-                              : "bg-rose-400"
-                          )}
-                          style={{ width: `${msg.confidence_score * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-white/30">
-                        {Math.round(msg.confidence_score * 100)}% confidence
-                      </span>
-                    </div>
-                  )}
                 </div>
-              </motion.div>
-            ))}
-        {!isLoading && messages.length === 0 && (
-          <div className="text-center py-16 text-white/30 text-sm">
-            No financial emails processed yet.
-            <br />
-            Configure your Gmail automation in{" "}
-            <a
-              href="http://localhost:5678"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-brand hover:underline"
-            >
-              n8n (localhost:5678)
-            </a>{" "}
-            to begin importing emails automatically.
-          </div>
-        )}
+                <p className="text-xs text-[hsl(var(--text-muted))] mt-0.5">
+                  {msg.sender} · {formatRelative(msg.received_at)}
+                </p>
+                {msg.confidence_score !== null && (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <div className="w-20 h-1.5 rounded-full bg-[hsl(var(--bg-elevated))]">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${msg.confidence_score * 100}%`,
+                          background: msg.confidence_score >= 0.9
+                            ? "hsl(var(--success))"
+                            : msg.confidence_score >= 0.7
+                            ? "hsl(var(--warning))"
+                            : "hsl(var(--danger))",
+                        }}
+                      />
+                    </div>
+                    <span className="text-xs text-[hsl(var(--text-muted))]">
+                      {Math.round(msg.confidence_score * 100)}% confidence
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
       </div>
     </div>
   );

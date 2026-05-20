@@ -5,24 +5,26 @@ import { useState } from "react";
 import api from "@/lib/api";
 import { Invoice } from "@/types/api";
 import { formatCurrency, formatDate } from "@/lib/formatters";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FileText } from "lucide-react";
 
 const STATUSES = ["ALL", "DRAFT", "PENDING_APPROVAL", "APPROVED", "PAID", "OVERDUE", "REJECTED"] as const;
 
-const STATUS_STYLE: Record<string, string> = {
-  DRAFT: "badge-muted",
-  PENDING_APPROVAL: "badge-warning",
-  APPROVED: "badge-info",
-  PAID: "badge-success",
-  OVERDUE: "badge-danger",
-  REJECTED: "badge-danger",
-  VOIDED: "badge-muted",
+const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "info" | "muted"> = {
+  DRAFT: "muted",
+  PENDING_APPROVAL: "warning",
+  APPROVED: "info",
+  PAID: "success",
+  OVERDUE: "danger",
+  REJECTED: "danger",
+  VOIDED: "muted",
 };
 
 export default function InvoicesPage() {
   const [status, setStatus] = useState("ALL");
 
-  const { data: invoices = [], isLoading } = useQuery<Invoice[]>({
+  const { data, isLoading } = useQuery<{ items: Invoice[] }>({
     queryKey: ["invoices", status],
     queryFn: () => {
       const params = status !== "ALL" ? `?status=${status}` : "";
@@ -30,78 +32,73 @@ export default function InvoicesPage() {
     },
   });
 
+  const invoices = data?.items || (Array.isArray(data) ? data : []);
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-white">Invoices</h1>
-          <p className="text-white/40 text-sm mt-1">{invoices.length} invoices</p>
-        </div>
+    <div className="space-y-5 animate-fade-in">
+      <div>
+        <h1 className="text-xl font-bold text-[hsl(var(--text-primary))]">Invoices</h1>
+        <p className="text-sm text-[hsl(var(--text-muted))] mt-0.5">{invoices.length} invoices</p>
       </div>
 
       {/* Status tabs */}
-      <div className="flex gap-1 p-1 bg-white/5 rounded-lg w-fit">
+      <div className="flex gap-1 p-1 rounded-xl bg-[hsl(var(--bg-elevated))] w-fit flex-wrap">
         {STATUSES.map((s) => (
           <button
             key={s}
             onClick={() => setStatus(s)}
-            className={cn(
-              "px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-              status === s ? "bg-brand text-white shadow-sm" : "text-white/40 hover:text-white"
-            )}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              status === s
+                ? "bg-[hsl(var(--accent))] text-white"
+                : "text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-primary))]"
+            }`}
           >
             {s.replace("_", " ")}
           </button>
         ))}
       </div>
 
-      <div className="glass-card overflow-hidden">
+      <div className="card overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-white/5">
+            <tr className="border-b border-[hsl(var(--border-subtle))]">
               {["Invoice #", "Vendor", "Type", "Issue Date", "Due Date", "Amount", "Status"].map((h) => (
-                <th key={h} className="text-left px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider">
-                  {h}
-                </th>
+                <th key={h} className="text-left px-4 py-3 section-label">{h}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody>
             {isLoading
               ? Array.from({ length: 6 }).map((_, i) => (
-                  <tr key={i}>
+                  <tr key={i} className="border-b border-[hsl(var(--border-subtle))]">
                     {Array.from({ length: 7 }).map((_, j) => (
-                      <td key={j} className="px-4 py-3">
-                        <div className="h-4 rounded shimmer w-20" />
-                      </td>
+                      <td key={j} className="px-4 py-3"><div className="h-4 rounded-lg shimmer w-20" /></td>
                     ))}
                   </tr>
                 ))
               : invoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-white/3 transition-colors cursor-pointer">
-                    <td className="px-4 py-3 font-mono text-brand-DEFAULT text-xs">{inv.invoice_number}</td>
-                    <td className="px-4 py-3 text-white">{inv.vendor_id || "—"}</td>
+                  <tr key={inv.id} className="border-b border-[hsl(var(--border-subtle))] hover:bg-[hsl(var(--bg-hover))] transition-colors cursor-pointer">
+                    <td className="px-4 py-3 font-mono text-[hsl(var(--accent))] text-xs">{inv.invoice_number}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-primary))]">{inv.vendor_id || "—"}</td>
                     <td className="px-4 py-3">
-                      <span className={cn("text-xs px-2 py-0.5 rounded border",
-                        inv.type === "RECEIVABLE" ? "badge-success" : "badge-warning"
-                      )}>
-                        {inv.type}
-                      </span>
+                      <Badge variant={inv.type === "RECEIVABLE" ? "success" : "warning"}>{inv.type}</Badge>
                     </td>
-                    <td className="px-4 py-3 text-white/50">{formatDate(inv.issue_date)}</td>
-                    <td className="px-4 py-3 text-white/50">{inv.due_date ? formatDate(inv.due_date) : "—"}</td>
-                    <td className="px-4 py-3 font-mono font-semibold text-white">{formatCurrency(inv.total_amount)}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-xs">{formatDate(inv.issue_date)}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-xs">{inv.due_date ? formatDate(inv.due_date) : "—"}</td>
+                    <td className="px-4 py-3 font-mono font-semibold text-[hsl(var(--text-primary))]">{formatCurrency(inv.total_amount)}</td>
                     <td className="px-4 py-3">
-                      <span className={cn("text-xs px-2 py-0.5 rounded-full border", STATUS_STYLE[inv.status] || "badge-muted")}>
-                        {inv.status.replace("_", " ")}
-                      </span>
+                      <Badge variant={STATUS_VARIANT[inv.status] || "muted"}>{inv.status.replace("_", " ")}</Badge>
                     </td>
                   </tr>
                 ))}
           </tbody>
         </table>
         {!isLoading && invoices.length === 0 && (
-          <div className="text-center py-16 text-white/30 text-sm">No invoices found for this status.</div>
+          <EmptyState
+            icon={<FileText className="w-6 h-6" />}
+            title="No invoices found"
+            description="Invoices are created automatically when financial emails are processed by n8n."
+          />
         )}
       </div>
     </div>

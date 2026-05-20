@@ -3,66 +3,71 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/formatters";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { CreditCard } from "lucide-react";
 
-const STATUS_STYLE: Record<string, string> = {
-  SCHEDULED: "badge-warning",
-  INITIATED: "badge-info",
-  PROCESSING: "badge-info",
-  COMPLETED: "badge-success",
-  FAILED: "badge-danger",
-  CANCELLED: "badge-muted",
+const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "info" | "muted"> = {
+  SCHEDULED: "warning",
+  INITIATED: "info",
+  PROCESSING: "info",
+  COMPLETED: "success",
+  FAILED: "danger",
+  CANCELLED: "muted",
 };
 
 export default function PaymentsPage() {
-  const { data: payments = [], isLoading } = useQuery<any[]>({
+  const { data, isLoading } = useQuery<{ items: any[] }>({
     queryKey: ["payments"],
     queryFn: () => api.get("/payments/").then((r) => r.data),
   });
 
+  const payments = data?.items || (Array.isArray(data) ? data : []);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-display font-bold text-white">Payments</h1>
-        <p className="text-white/40 text-sm mt-1">{payments.length} payment records</p>
+        <h1 className="text-xl font-bold text-[hsl(var(--text-primary))]">Payments</h1>
+        <p className="text-sm text-[hsl(var(--text-muted))] mt-0.5">{payments.length} payment records</p>
       </div>
 
-      <div className="glass-card overflow-hidden">
+      <div className="card overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-white/5">
+            <tr className="border-b border-[hsl(var(--border-subtle))]">
               {["Date", "Amount", "Method", "Reference", "Status"].map((h) => (
-                <th key={h} className="text-left px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider">{h}</th>
+                <th key={h} className="text-left px-4 py-3 section-label">{h}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody>
             {isLoading
               ? Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
+                  <tr key={i} className="border-b border-[hsl(var(--border-subtle))]">
                     {Array.from({ length: 5 }).map((_, j) => (
-                      <td key={j} className="px-4 py-3"><div className="h-4 shimmer rounded w-20" /></td>
+                      <td key={j} className="px-4 py-3"><div className="h-4 shimmer rounded-lg w-20" /></td>
                     ))}
                   </tr>
                 ))
               : payments.map((p) => (
-                  <tr key={p.id} className="hover:bg-white/3 transition-colors">
-                    <td className="px-4 py-3 text-white/50">{formatDate(p.payment_date)}</td>
-                    <td className="px-4 py-3 font-mono font-semibold text-white">{formatCurrency(p.amount)}</td>
-                    <td className="px-4 py-3 text-white/60">{p.payment_method?.replace("_", " ")}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-white/40">{p.reference_number || "—"}</td>
+                  <tr key={p.id} className="border-b border-[hsl(var(--border-subtle))] hover:bg-[hsl(var(--bg-hover))] transition-colors">
+                    <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-xs">{formatDate(p.payment_date)}</td>
+                    <td className="px-4 py-3 font-mono font-semibold text-[hsl(var(--text-primary))]">{formatCurrency(p.amount)}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))]">{p.payment_method?.replace("_", " ")}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-[hsl(var(--text-muted))]">{p.reference_number || "—"}</td>
                     <td className="px-4 py-3">
-                      <span className={cn("text-xs px-2 py-0.5 rounded-full border", STATUS_STYLE[p.status] || "badge-muted")}>
-                        {p.status}
-                      </span>
+                      <Badge variant={STATUS_VARIANT[p.status] || "muted"}>{p.status}</Badge>
                     </td>
                   </tr>
                 ))}
           </tbody>
         </table>
         {!isLoading && payments.length === 0 && (
-          <div className="text-center py-16 text-white/30 text-sm">No payment records found.</div>
+          <EmptyState
+            icon={<CreditCard className="w-6 h-6" />}
+            title="No payments recorded"
+            description="Payment records will appear here as financial emails are processed."
+          />
         )}
       </div>
     </div>

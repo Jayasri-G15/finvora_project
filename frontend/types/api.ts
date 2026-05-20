@@ -11,14 +11,81 @@ export interface User {
   full_name: string;
   picture_url: string | null;
   role: string;
-  gmail_history_id: string | null;
-  gmail_watch_expiry: string | null;
+  organization_id: string | null;
   is_active: boolean;
   created_at: string;
 }
 
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  email: string | null;
+  plan: "free" | "pro" | "enterprise";
+  gmail_connected: boolean;
+  last_gmail_sync: string | null;
+  created_at: string;
+}
+
+export interface OrganizationMember {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  role: "owner" | "admin" | "member" | "viewer";
+  is_active: boolean;
+  joined_at: string | null;
+  user: User;
+}
+
+export interface FinancialGoal {
+  id: string;
+  organization_id: string;
+  created_by_id: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  target_amount: string;
+  current_amount: string;
+  currency: string;
+  deadline: string | null;
+  status: "ACTIVE" | "ACHIEVED" | "PAUSED" | "CANCELLED";
+  progress_pct: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GmailStatus {
+  connected: boolean;
+  last_sync_at: string | null;
+  total_emails: number;
+  pending_review: number;
+  emails_this_month: number;
+}
+
+export interface AIInsight {
+  type: string;
+  title: string;
+  description: string;
+  severity: "info" | "warning" | "critical" | "positive";
+  action_recommended: string | null;
+}
+
+export interface ForecastPoint {
+  period: string;
+  projected_inflow: number;
+  projected_outflow: number;
+  projected_net: number;
+  confidence: "low" | "medium" | "high";
+}
+
+export interface SpendTrend {
+  month: string;
+  categories: Array<{ name: string; amount: number }>;
+}
+
 export interface Transaction {
   id: string;
+  organization_id: string;
   user_id: string;
   type: "CREDIT" | "DEBIT";
   amount: string;
@@ -37,6 +104,7 @@ export interface Transaction {
 
 export interface Invoice {
   id: string;
+  organization_id: string;
   user_id: string;
   invoice_number: string;
   vendor_id: string | null;
@@ -66,6 +134,7 @@ export interface LineItem {
 
 export interface Vendor {
   id: string;
+  organization_id: string;
   name: string;
   email: string | null;
   phone: string | null;
@@ -79,6 +148,7 @@ export interface Vendor {
 
 export interface EmailMessage {
   id: string;
+  organization_id: string;
   gmail_message_id: string;
   subject: string;
   sender: string;
@@ -105,6 +175,7 @@ export interface DashboardStats {
 
 export interface Report {
   id: string;
+  organization_id: string;
   title: string;
   report_type: string;
   period_start: string;
@@ -116,6 +187,7 @@ export interface Report {
 
 export interface AlertNotification {
   id: string;
+  organization_id: string;
   title: string;
   message: string;
   severity: "INFO" | "WARNING" | "CRITICAL";

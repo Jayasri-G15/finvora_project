@@ -16,6 +16,8 @@ class User(Base, TimestampMixin):
     google_sub: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     role: Mapped[str] = mapped_column(String(50), default="owner", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Set after onboarding — null until org is created or joined
+    organization_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
     # Relationships
     sessions: Mapped[list["UserSession"]] = relationship(

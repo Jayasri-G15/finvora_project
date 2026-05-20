@@ -31,8 +31,12 @@ class Settings(BaseSettings):
     # n8n webhook security
     n8n_webhook_secret: str = ""
 
+    # n8n integration
+    n8n_base_url: str = "http://localhost:5678"
+    n8n_trigger_webhook: str = ""   # n8n webhook URL for historical Gmail sync trigger
+
     # File storage
-    upload_dir: str = "/app/uploads"
+    upload_dir: str = "uploads"
     max_attachment_size_mb: int = 25
 
     @property

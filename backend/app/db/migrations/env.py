@@ -18,6 +18,8 @@ import app.models.payment  # noqa: F401
 import app.models.approval  # noqa: F401
 import app.models.alert  # noqa: F401
 import app.models.report  # noqa: F401
+import app.models.organization  # noqa: F401
+import app.models.financial_goal  # noqa: F401
 
 config = context.config
 

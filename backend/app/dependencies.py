@@ -4,9 +4,11 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.models.user import User
+from app.models.organization import Organization, OrganizationMember
 from app.utils.security import verify_supabase_token
 
 bearer_scheme = HTTPBearer()
@@ -53,6 +55,35 @@ async def get_current_user(
     return user
 
 
-# Type aliases for route handler injection
+async def get_current_org(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Organization:
+    """
+    Resolve the active organization for the authenticated user.
+    Raises 403 if the user has not completed onboarding.
+    """
+    result = await db.execute(
+        select(Organization)
+        .join(
+            OrganizationMember,
+            OrganizationMember.organization_id == Organization.id,
+        )
+        .where(
+            OrganizationMember.user_id == current_user.id,
+            OrganizationMember.is_active == True,
+        )
+    )
+    org = result.scalar_one_or_none()
+    if not org:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No organization found. Please complete onboarding at /onboard.",
+        )
+    return org
+
+
+# ─── Type aliases for route handler injection ───────────────────────────────
 CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentOrg = Annotated[Organization, Depends(get_current_org)]
 DBSession = Annotated[AsyncSession, Depends(get_db)]

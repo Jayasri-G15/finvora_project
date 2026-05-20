@@ -1,1 +1,15 @@
-from app.models import base, user, email_sync, transaction, invoice, vendor, budget, payment, approval, alert, report  # noqa: F401
+from app.models import (  # noqa: F401
+    base,
+    user,
+    organization,
+    financial_goal,
+    email_sync,
+    transaction,
+    invoice,
+    vendor,
+    budget,
+    payment,
+    approval,
+    alert,
+    report,
+)

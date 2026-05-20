@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+*.log
+.ruff_cache/
+
+# Uploads
+backend/uploads/
+
+# Node
+node_modules/
+.next/
+out/
+.nuxt/
+
+# Environment secrets — NEVER commit these
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Alembic (keep migrations, ignore __pycache__)
+backend/app/db/migrations/versions/__pycache__/

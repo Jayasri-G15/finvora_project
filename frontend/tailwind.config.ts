@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  // Support both .dark and .light class on <html>
   darkMode: ["class"],
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -10,7 +11,44 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Finvora brand palette
+        // CSS-variable-driven semantic tokens
+        surface: "hsl(var(--bg-surface) / <alpha-value>)",
+        elevated: "hsl(var(--bg-elevated) / <alpha-value>)",
+        hover: "hsl(var(--bg-hover) / <alpha-value>)",
+        border: "hsl(var(--border) / <alpha-value>)",
+        "border-subtle": "hsl(var(--border-subtle) / <alpha-value>)",
+
+        primary: {
+          DEFAULT: "hsl(var(--text-primary) / <alpha-value>)",
+          secondary: "hsl(var(--text-secondary) / <alpha-value>)",
+          muted: "hsl(var(--text-muted) / <alpha-value>)",
+        },
+
+        accent: {
+          DEFAULT: "hsl(var(--accent) / <alpha-value>)",
+          hover: "hsl(var(--accent-hover) / <alpha-value>)",
+          muted: "hsl(var(--accent-muted))",
+          fg: "hsl(var(--accent-fg) / <alpha-value>)",
+        },
+
+        success: {
+          DEFAULT: "hsl(var(--success) / <alpha-value>)",
+          muted: "hsl(var(--success-muted))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning) / <alpha-value>)",
+          muted: "hsl(var(--warning-muted))",
+        },
+        danger: {
+          DEFAULT: "hsl(var(--danger) / <alpha-value>)",
+          muted: "hsl(var(--danger-muted))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info) / <alpha-value>)",
+          muted: "hsl(var(--info-muted))",
+        },
+
+        // Legacy navy palette (kept for backward compat)
         navy: {
           950: "#050a14",
           900: "#0a0f1e",
@@ -19,45 +57,76 @@ const config: Config = {
           600: "#1a2744",
         },
         brand: {
-          DEFAULT: "#6366f1",
-          50: "#eef2ff",
-          100: "#e0e7ff",
-          500: "#6366f1",
-          600: "#4f46e5",
-          700: "#4338ca",
-        },
-        success: {
-          DEFAULT: "#10b981",
-          light: "#d1fae5",
-        },
-        danger: {
-          DEFAULT: "#f43f5e",
-          light: "#ffe4e6",
-        },
-        warning: {
-          DEFAULT: "#f59e0b",
-          light: "#fef3c7",
+          DEFAULT: "#7c6ff7",
+          500: "#7c6ff7",
+          600: "#6356e8",
         },
       },
-      backgroundImage: {
-        "gradient-brand": "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-        "gradient-dark": "linear-gradient(180deg, #0a0f1e 0%, #050a14 100%)",
-        "gradient-card": "linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(139,92,246,0.05) 100%)",
+
+      backgroundColor: {
+        base: "hsl(var(--bg-base) / <alpha-value>)",
+        surface: "hsl(var(--bg-surface) / <alpha-value>)",
+        elevated: "hsl(var(--bg-elevated) / <alpha-value>)",
+        hover: "hsl(var(--bg-hover) / <alpha-value>)",
       },
+
+      borderColor: {
+        DEFAULT: "hsl(var(--border))",
+        subtle: "hsl(var(--border-subtle))",
+      },
+
+      textColor: {
+        primary: "hsl(var(--text-primary))",
+        secondary: "hsl(var(--text-secondary))",
+        muted: "hsl(var(--text-muted))",
+      },
+
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        display: ["Cal Sans", "Inter", "system-ui", "sans-serif"],
+        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
+        display: ["Inter", "system-ui", "sans-serif"],
       },
+
+      borderRadius: {
+        DEFAULT: "var(--radius)",
+        sm: "calc(var(--radius) - 4px)",
+        lg: "calc(var(--radius) + 4px)",
+        xl: "calc(var(--radius) + 8px)",
+      },
+
+      boxShadow: {
+        sm: "var(--shadow-sm)",
+        md: "var(--shadow-md)",
+        lg: "var(--shadow-lg)",
+        accent: "0 0 20px hsl(var(--accent) / 0.25)",
+        "accent-lg": "0 0 32px hsl(var(--accent) / 0.35)",
+      },
+
       animation: {
-        "fade-in": "fadeIn 0.3s ease-in-out",
-        "slide-up": "slideUp 0.3s ease-out",
-        "pulse-slow": "pulse 3s cubic-bezier(0.4,0,0.6,1) infinite",
-        shimmer: "shimmer 2s linear infinite",
+        "fade-in": "fade-in 0.35s ease forwards",
+        "slide-up": "slide-up 0.4s ease forwards",
+        shimmer: "shimmer 1.5s infinite",
+        "pulse-ring": "pulse-ring 2s ease infinite",
+        "spin-slow": "spin 3s linear infinite",
       },
+
       keyframes: {
-        fadeIn: { "0%": { opacity: "0" }, "100%": { opacity: "1" } },
-        slideUp: { "0%": { transform: "translateY(8px)", opacity: "0" }, "100%": { transform: "translateY(0)", opacity: "1" } },
-        shimmer: { "0%": { backgroundPosition: "-200% 0" }, "100%": { backgroundPosition: "200% 0" } },
+        shimmer: {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
+        "fade-in": {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "slide-up": {
+          from: { opacity: "0", transform: "translateY(16px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "pulse-ring": {
+          "0%": { boxShadow: "0 0 0 0 hsl(var(--success) / 0.4)" },
+          "70%": { boxShadow: "0 0 0 8px hsl(var(--success) / 0)" },
+          "100%": { boxShadow: "0 0 0 0 hsl(var(--success) / 0)" },
+        },
       },
     },
   },

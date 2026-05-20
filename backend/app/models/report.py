@@ -25,6 +25,7 @@ class Report(Base, TimestampMixin):
     __tablename__ = "reports"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    organization_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     report_type: Mapped[ReportType] = mapped_column(SAEnum(ReportType), nullable=False)

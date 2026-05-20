@@ -1,15 +1,16 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { Session, User as SupabaseUser } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import api from "@/lib/api";
-import { User } from "@/types/api";
+import { User, Organization } from "@/types/api";
 
 interface AuthContextValue {
   session: Session | null;
   supabaseUser: SupabaseUser | null;
-  user: User | null;         // Extended Finvora profile from FastAPI
+  user: User | null;
+  organization: Organization | null;
   isLoading: boolean;
   refetch: () => void;
 }
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextValue>({
   session: null,
   supabaseUser: null,
   user: null,
+  organization: null,
   isLoading: true,
   refetch: () => {},
 });
@@ -26,44 +28,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [organization, setOrganization] = useState<Organization | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchFinvoraProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
-      const { data } = await api.get<User>("/auth/me");
-      setUser(data);
+      const { data: userData } = await api.get<User>("/auth/me");
+      setUser(userData);
+      // Fetch org if user has one
+      if (userData?.organization_id) {
+        try {
+          const { data: orgData } = await api.get<Organization>("/organizations/me");
+          setOrganization(orgData);
+        } catch {
+          setOrganization(null);
+        }
+      } else {
+        setOrganization(null);
+      }
     } catch {
       setUser(null);
+      setOrganization(null);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setSupabaseUser(data.session?.user ?? null);
       if (data.session) {
-        fetchFinvoraProfile().finally(() => setIsLoading(false));
+        fetchProfile().finally(() => setIsLoading(false));
       } else {
         setIsLoading(false);
       }
     });
 
-    // Subscribe to auth state changes (login / logout / token refresh)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       setSupabaseUser(newSession?.user ?? null);
       if (newSession) {
-        fetchFinvoraProfile();
+        fetchProfile();
       } else {
         setUser(null);
+        setOrganization(null);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchProfile]);
 
   return (
     <AuthContext.Provider
@@ -71,8 +83,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         session,
         supabaseUser,
         user,
+        organization,
         isLoading,
-        refetch: fetchFinvoraProfile,
+        refetch: fetchProfile,
       }}
     >
       {children}

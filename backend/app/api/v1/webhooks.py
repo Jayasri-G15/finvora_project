@@ -10,6 +10,7 @@ from app.config import get_settings
 from app.dependencies import DBSession
 from app.models.email_sync import EmailMessage, FinancialType
 from app.models.invoice import Invoice, InvoiceStatus, InvoiceType
+from app.models.organization import Organization, OrganizationMember
 from app.models.transaction import Transaction, TransactionType, TransactionStatus
 from app.models.vendor import Vendor
 from app.models.user import User
@@ -56,6 +57,7 @@ async def receive_n8n_email(
     Receives the output of n8n's Gmail + OpenAI extraction workflow.
     Creates EmailMessage record + Invoice or Transaction depending on financial_type.
     Idempotent: skips if gmail_message_id already processed.
+    All records are scoped to the user's organization_id.
     """
     # 1. Authenticate the n8n caller
     if settings.n8n_webhook_secret and x_webhook_secret != settings.n8n_webhook_secret:
@@ -67,31 +69,50 @@ async def receive_n8n_email(
     )
     user = result.scalar_one_or_none()
     if not user:
-        # User hasn't logged in yet — ignore silently
         return {"status": "ignored", "reason": "user_not_found"}
 
-    # 3. Idempotency guard
+    # 3. Resolve organization for this user
+    org_result = await db.execute(
+        select(Organization)
+        .join(OrganizationMember, OrganizationMember.organization_id == Organization.id)
+        .where(OrganizationMember.user_id == user.id, OrganizationMember.is_active == True)
+    )
+    org = org_result.scalar_one_or_none()
+    if not org:
+        # User not yet onboarded — store without org_id (will fail model NOT NULL)
+        # Return gracefully so n8n doesn't retry infinitely
+        return {"status": "ignored", "reason": "organization_not_found"}
+
+    organization_id = org.id
+
+    # 4. Update org gmail_connected status
+    if not org.gmail_connected:
+        org.gmail_connected = True
+        org.last_gmail_sync = datetime.now(timezone.utc)
+
+    # 5. Idempotency guard
     dup = await db.execute(
         select(EmailMessage).where(EmailMessage.gmail_message_id == payload.gmail_message_id)
     )
     if dup.scalar_one_or_none():
         return {"status": "duplicate"}
 
-    # 4. Parse timestamp
+    # 6. Parse timestamp
     try:
         received_at = datetime.fromisoformat(payload.received_at.replace("Z", "+00:00"))
     except ValueError:
         received_at = datetime.now(timezone.utc)
 
-    # 5. Resolve financial type enum
+    # 7. Resolve financial type enum
     ext = payload.extraction
     try:
         fin_type = FinancialType(ext.financial_type)
     except ValueError:
         fin_type = FinancialType.UNKNOWN
 
-    # 6. Store EmailMessage
+    # 8. Store EmailMessage
     email_msg = EmailMessage(
+        organization_id=organization_id,
         user_id=user.id,
         gmail_message_id=payload.gmail_message_id,
         gmail_thread_id=payload.gmail_message_id,
@@ -112,7 +133,7 @@ async def receive_n8n_email(
     linked_invoice_id = None
     linked_transaction_id = None
 
-    # 7. Create Invoice for INVOICE / VENDOR_BILL with sufficient confidence
+    # 9. Create Invoice for INVOICE / VENDOR_BILL with sufficient confidence
     if (
         fin_type in (FinancialType.INVOICE, FinancialType.VENDOR_BILL)
         and ext.amount
@@ -121,11 +142,15 @@ async def receive_n8n_email(
         vendor_id = None
         if ext.vendor_name:
             v_result = await db.execute(
-                select(Vendor).where(Vendor.user_id == user.id, Vendor.name == ext.vendor_name)
+                select(Vendor).where(
+                    Vendor.organization_id == organization_id,
+                    Vendor.name == ext.vendor_name,
+                )
             )
             vendor = v_result.scalar_one_or_none()
             if not vendor:
                 vendor = Vendor(
+                    organization_id=organization_id,
                     user_id=user.id,
                     name=ext.vendor_name,
                     email=ext.vendor_email,
@@ -135,6 +160,7 @@ async def receive_n8n_email(
             vendor_id = vendor.id
 
         invoice = Invoice(
+            organization_id=organization_id,
             user_id=user.id,
             invoice_number=ext.invoice_number or f"AUTO-{payload.gmail_message_id[:8].upper()}",
             vendor_id=vendor_id,
@@ -156,9 +182,10 @@ async def receive_n8n_email(
         await db.flush()
         linked_invoice_id = invoice.id
 
-    # 8. Create Transaction for PAYMENT type
+    # 10. Create Transaction for PAYMENT type
     elif fin_type == FinancialType.PAYMENT and ext.amount:
         txn = Transaction(
+            organization_id=organization_id,
             user_id=user.id,
             type=TransactionType.DEBIT,
             amount=Decimal(str(ext.amount)),
@@ -173,9 +200,12 @@ async def receive_n8n_email(
         await db.flush()
         linked_transaction_id = txn.id
 
-    # 9. Back-link email to created records
+    # 11. Back-link email to created records
     email_msg.linked_invoice_id = linked_invoice_id
     email_msg.linked_transaction_id = linked_transaction_id
+
+    # 12. Update org last_gmail_sync timestamp
+    org.last_gmail_sync = datetime.now(timezone.utc)
 
     return {
         "status": "processed",

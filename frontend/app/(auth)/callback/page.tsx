@@ -3,37 +3,58 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
+import { Spinner } from "@/components/ui/Spinner";
 
 export default function CallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Supabase automatically exchanges the PKCE code in the URL query params.
-    // onAuthStateChange fires once the session is established.
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        router.replace("/dashboard");
-      } else if (event === "SIGNED_OUT") {
-        router.replace("/login");
+    async function handleCallback() {
+      // Wait for Supabase to process the PKCE code exchange
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        // Listen for the auth state change (PKCE flow)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, sess) => {
+          if (sess) {
+            subscription.unsubscribe();
+            await checkOrgAndRedirect(sess.access_token);
+          } else if (event === "SIGNED_OUT") {
+            subscription.unsubscribe();
+            router.replace("/login");
+          }
+        });
+        return;
       }
-    });
 
-    // Handle hard reload on callback URL where session may already exist
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.replace("/dashboard");
-    });
+      await checkOrgAndRedirect(session.access_token);
+    }
 
-    return () => subscription.unsubscribe();
+    async function checkOrgAndRedirect(token: string) {
+      try {
+        // Check if user has an organization
+        const user = await api.get("/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (user.data?.organization_id) {
+          router.replace("/dashboard");
+        } else {
+          router.replace("/onboard");
+        }
+      } catch {
+        // If API call fails (e.g., first ever login), still route to onboard
+        router.replace("/onboard");
+      }
+    }
+
+    handleCallback();
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-navy-900 flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4 text-white/50">
-        <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm">Completing sign-in…</p>
-      </div>
+    <div className="min-h-screen bg-[hsl(var(--bg-base))] flex flex-col items-center justify-center gap-4">
+      <Spinner size="lg" />
+      <p className="text-sm text-[hsl(var(--text-muted))]">Completing sign-in…</p>
     </div>
   );
 }

@@ -30,6 +30,7 @@ class Invoice(Base, TimestampMixin):
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    organization_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     invoice_number: Mapped[str] = mapped_column(String(100), nullable=False)
     vendor_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)

@@ -24,3 +24,7 @@ class TimestampMixin:
 
 def new_uuid() -> str:
     return str(uuid.uuid4())
+
+
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)

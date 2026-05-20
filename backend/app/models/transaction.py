@@ -28,6 +28,7 @@ class Transaction(Base, TimestampMixin):
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    organization_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     type: Mapped[TransactionType] = mapped_column(SAEnum(TransactionType), nullable=False)
     # Stored as Numeric — never float

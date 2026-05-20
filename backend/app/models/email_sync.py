@@ -27,6 +27,7 @@ class EmailSync(Base, TimestampMixin):
     __tablename__ = "email_syncs"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    organization_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     status: Mapped[EmailSyncStatus] = mapped_column(SAEnum(EmailSyncStatus), default=EmailSyncStatus.RUNNING)
     synced_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -39,6 +40,7 @@ class EmailMessage(Base, TimestampMixin):
     __tablename__ = "email_messages"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    organization_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     gmail_message_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     gmail_thread_id: Mapped[str] = mapped_column(String(255), nullable=False)
