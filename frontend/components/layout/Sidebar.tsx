@@ -20,7 +20,7 @@ const NAV = [
   { href: ROUTES.APPROVALS, label: "Approvals", icon: CheckSquare },
   { href: ROUTES.ALERTS, label: "Alerts", icon: Bell },
   { href: ROUTES.REPORTS, label: "Reports", icon: BarChart3 },
-  { href: ROUTES.EMAILS, label: "Email Sync", icon: Mail },
+  { href: ROUTES.EMAILS, label: "Financial Emails", icon: Mail },
 ];
 
 export function Sidebar() {

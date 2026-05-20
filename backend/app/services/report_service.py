@@ -1,15 +1,11 @@
-"""AI report generation using Claude — produces markdown financial reports."""
+"""AI report generation via OpenAI — produces markdown financial reports."""
 from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 
 from app.models.report import Report, ReportType, ReportStatus
 from app.models.transaction import Transaction, TransactionType
-from app.integrations.claude.client import get_ai_client
-from app.integrations.claude.prompts import REPORT_SYSTEM_PROMPT
-from app.config import get_settings
-
-settings = get_settings()
+from app.services.openai_service import generate_ai_report
 
 
 async def generate_report(
@@ -64,17 +60,7 @@ async def generate_report(
             f"Report Type: {report_type.value}\n"
         )
 
-        client = get_ai_client()
-        response = client.chat.completions.create(
-            model=settings.openai_model,
-            max_tokens=settings.openai_max_tokens,
-            messages=[
-                {"role": "system", "content": REPORT_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Generate a {report_type.value} report:\n\n{data_summary}"},
-            ],
-        )
-
-        report.ai_generated_content = response.choices[0].message.content
+        report.ai_generated_content = generate_ai_report(report_type.value, data_summary)
         report.status = ReportStatus.COMPLETED
 
     except Exception as exc:

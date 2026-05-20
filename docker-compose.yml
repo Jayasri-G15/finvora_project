@@ -1,33 +1,19 @@
-version: "3.9"
-
 services:
-  postgres:
-    image: postgres:16-alpine
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
     environment:
-      POSTGRES_DB: finvora_db
-      POSTGRES_USER: finvora
-      POSTGRES_PASSWORD: finvora_pass
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=changeme
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=Asia/Kolkata
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U finvora"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      - n8n_data:/home/node/.n8n
 
   backend:
     build:
@@ -41,38 +27,6 @@ services:
     volumes:
       - ./backend:/app
       - uploads_data:/app/uploads
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  celery_worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4
-    env_file:
-      - .env
-    volumes:
-      - ./backend:/app
-      - uploads_data:/app/uploads
-    depends_on:
-      - backend
-      - redis
-      - postgres
-
-  celery_beat:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    command: celery -A app.tasks.celery_app beat --loglevel=info
-    env_file:
-      - .env
-    volumes:
-      - ./backend:/app
-    depends_on:
-      - celery_worker
 
   frontend:
     build:
@@ -83,6 +37,8 @@ services:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -91,6 +47,5 @@ services:
       - backend
 
 volumes:
-  postgres_data:
-  redis_data:
+  n8n_data:
   uploads_data:

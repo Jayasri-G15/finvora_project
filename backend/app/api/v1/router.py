@@ -1,9 +1,13 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, emails, transactions, invoices, vendors, budgets, payments, approvals, alerts, reports, analytics
+from app.api.v1 import (
+    auth, emails, transactions, invoices, vendors, budgets,
+    payments, approvals, alerts, reports, analytics, webhooks,
+)
 
 api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(emails.router, prefix="/emails", tags=["emails"])
 api_router.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
 api_router.include_router(invoices.router, prefix="/invoices", tags=["invoices"])

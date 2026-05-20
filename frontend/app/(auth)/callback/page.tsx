@@ -1,22 +1,32 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { setToken } from "@/lib/auth";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 export default function CallbackPage() {
   const router = useRouter();
-  const params = useSearchParams();
 
   useEffect(() => {
-    const token = params.get("token");
-    if (token) {
-      setToken(token);
-      router.replace("/dashboard");
-    } else {
-      router.replace("/login");
-    }
-  }, [params, router]);
+    // Supabase automatically exchanges the PKCE code in the URL query params.
+    // onAuthStateChange fires once the session is established.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        router.replace("/dashboard");
+      } else if (event === "SIGNED_OUT") {
+        router.replace("/login");
+      }
+    });
+
+    // Handle hard reload on callback URL where session may already exist
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) router.replace("/dashboard");
+    });
+
+    return () => subscription.unsubscribe();
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-navy-900 flex items-center justify-center">

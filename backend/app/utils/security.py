@@ -1,50 +1,27 @@
-from datetime import datetime, timedelta, timezone
-from typing import Any
-import uuid
+"""Supabase JWT verification — all token creation/encryption removed."""
 from jose import jwt, JWTError
-from cryptography.fernet import Fernet
+from fastapi import HTTPException, status
 from app.config import get_settings
 
 settings = get_settings()
 
-_fernet: Fernet | None = None
 
-
-def _get_fernet() -> Fernet:
-    global _fernet
-    if _fernet is None and settings.encryption_key:
-        _fernet = Fernet(settings.encryption_key.encode())
-    return _fernet
-
-
-def encrypt_value(value: str) -> str:
-    f = _get_fernet()
-    if f is None:
-        return value
-    return f.encrypt(value.encode()).decode()
-
-
-def decrypt_value(value: str) -> str:
-    f = _get_fernet()
-    if f is None:
-        return value
-    return f.decrypt(value.encode()).decode()
-
-
-def create_access_token(subject: str, extra: dict[str, Any] | None = None) -> tuple[str, str]:
-    """Returns (token, jti)."""
-    jti = str(uuid.uuid4())
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
-    payload = {"sub": subject, "exp": expire, "jti": jti, "type": "access"}
-    if extra:
-        payload.update(extra)
-    token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
-    return token, jti
-
-
-def decode_access_token(token: str) -> dict | None:
+def verify_supabase_token(token: str) -> dict:
+    """
+    Decode and validate a Supabase-issued JWT.
+    Returns the payload dict (contains 'sub', 'email', 'role', 'user_metadata').
+    Raises HTTP 401 if token is invalid or expired.
+    """
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
-        return payload
-    except JWTError:
-        return None
+        return jwt.decode(
+            token,
+            settings.supabase_jwt_secret,
+            algorithms=["HS256"],
+            audience="authenticated",
+        )
+    except JWTError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired authentication token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
