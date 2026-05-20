@@ -1,0 +1,277 @@
+{
+  "name": "Finvora AI — Gmail Financial Email Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 5,
+              "unit": "minutes"
+            }
+          ]
+        },
+        "filters": {
+          "readStatus": "unread",
+          "labels": {
+            "labelIds": ["INBOX"]
+          }
+        },
+        "options": {
+          "downloadAttachments": false
+        }
+      },
+      "id": "node-gmail-trigger",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1",
+          "name": "Gmail OAuth2 — Finvora"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.subject }}",
+              "operation": "regex",
+              "value2": "(?i)(invoice|payment|bill|receipt|GST|gst|vendor|reimbursement|IOU|overdue|due|payable|receivable|tax|debit|credit note|purchase order|PO |quotation|estimate|statement)"
+            }
+          ]
+        }
+      },
+      "id": "node-filter-financial",
+      "name": "Is Financial Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "complete",
+        "model": "gpt-4o",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are Finvora AI's financial data extraction engine. Extract structured financial data from email content. Always respond with a valid JSON object matching the extract_financial_data function schema. Be precise and conservative — if uncertain, lower the confidence_score. Never fabricate data not present in the email."
+            },
+            {
+              "role": "user",
+              "content": "=Extract financial data from this email:\n\nSubject: {{ $json.subject }}\nFrom: {{ $json.from.value[0].address }}\nDate: {{ $json.date }}\n\nBody:\n{{ $json.text || $json.snippet }}"
+            }
+          ]
+        },
+        "options": {
+          "maxTokens": 1024,
+          "temperature": 0
+        },
+        "jsonOutput": true,
+        "tools": {
+          "values": [
+            {
+              "name": "extract_financial_data",
+              "description": "Extract structured financial data from an email",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "financial_type": {
+                    "type": "string",
+                    "enum": ["INVOICE", "PAYMENT", "GST", "REIMBURSEMENT", "VENDOR_BILL", "CREDIT_NOTE", "APPROVAL", "UNKNOWN"],
+                    "description": "Type of financial document"
+                  },
+                  "vendor_name": {
+                    "type": "string",
+                    "description": "Name of the vendor or company"
+                  },
+                  "vendor_email": {
+                    "type": "string",
+                    "description": "Email address of the vendor"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "description": "Total amount (numeric only, no currency symbols)"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "description": "3-letter currency code (e.g. INR, USD)",
+                    "default": "INR"
+                  },
+                  "invoice_number": {
+                    "type": "string",
+                    "description": "Invoice or reference number if present"
+                  },
+                  "issue_date": {
+                    "type": "string",
+                    "description": "Invoice issue date in ISO 8601 format (YYYY-MM-DD)"
+                  },
+                  "due_date": {
+                    "type": "string",
+                    "description": "Payment due date in ISO 8601 format (YYYY-MM-DD)"
+                  },
+                  "tax_amount": {
+                    "type": "number",
+                    "description": "Tax/GST amount if separately stated"
+                  },
+                  "gst_number": {
+                    "type": "string",
+                    "description": "GST registration number if present"
+                  },
+                  "confidence_score": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Confidence in extraction accuracy (0.0 to 1.0)"
+                  }
+                },
+                "required": ["financial_type", "confidence_score"]
+              }
+            }
+          ]
+        }
+      },
+      "id": "node-openai-extract",
+      "name": "OpenAI — Extract Financial Data",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [680, 220],
+      "credentials": {
+        "openAiApi": {
+          "id": "2",
+          "name": "OpenAI API — Finvora"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build the N8nEmailPayload that Finvora's backend expects\n\n// Get the Gmail trigger data (from the first node)\nconst emailData = $('Gmail Trigger').first().json;\n\n// Get OpenAI extraction result\nconst openaiResult = $input.first().json;\n\n// Parse the tool call result\nlet extraction = {\n  financial_type: 'UNKNOWN',\n  confidence_score: 0.0\n};\n\ntry {\n  // n8n OpenAI node returns the tool call arguments as a parsed object\n  if (openaiResult.message && openaiResult.message.tool_calls && openaiResult.message.tool_calls.length > 0) {\n    const toolArgs = openaiResult.message.tool_calls[0].function.arguments;\n    extraction = typeof toolArgs === 'string' ? JSON.parse(toolArgs) : toolArgs;\n  } else if (openaiResult.text) {\n    // Fallback: try parsing text response as JSON\n    extraction = JSON.parse(openaiResult.text);\n  }\n} catch (e) {\n  // Keep default unknown extraction\n  console.log('Failed to parse OpenAI response:', e.message);\n}\n\n// Extract sender email\nconst senderRaw = emailData.from?.value?.[0]?.address || emailData.from || '';\nconst senderName = emailData.from?.value?.[0]?.name || '';\nconst sender = senderName ? `${senderName} <${senderRaw}>` : senderRaw;\n\n// Build payload\nconst payload = {\n  user_email: $env.FINVORA_USER_EMAIL, // Set this in n8n environment variables\n  gmail_message_id: emailData.id,\n  subject: emailData.subject || '(No Subject)',\n  sender: sender,\n  received_at: emailData.date || new Date().toISOString(),\n  body: emailData.text || emailData.snippet || null,\n  extraction: {\n    financial_type: extraction.financial_type || 'UNKNOWN',\n    vendor_name: extraction.vendor_name || null,\n    vendor_email: extraction.vendor_email || null,\n    amount: extraction.amount || null,\n    currency: extraction.currency || 'INR',\n    invoice_number: extraction.invoice_number || null,\n    issue_date: extraction.issue_date || null,\n    due_date: extraction.due_date || null,\n    tax_amount: extraction.tax_amount || null,\n    gst_number: extraction.gst_number || null,\n    confidence_score: extraction.confidence_score || 0.0\n  }\n};\n\nreturn [{ json: payload }];"
+      },
+      "id": "node-build-payload",
+      "name": "Build Finvora Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.FINVORA_BACKEND_URL }}/api/v1/webhooks/n8n/email",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Webhook-Secret",
+              "value": "={{ $env.FINVORA_WEBHOOK_SECRET }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "node-http-finvora",
+      "name": "POST to Finvora Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log skipped non-financial email (optional — can delete this node)\nconst emailData = $input.first().json;\nconsole.log(`Skipped non-financial email: \"${emailData.subject}\" from ${emailData.from?.value?.[0]?.address}`);\nreturn [{ json: { status: 'skipped', subject: emailData.subject } }];"
+      },
+      "id": "node-skip-log",
+      "name": "Skip Non-Financial",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 420]
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Is Financial Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Financial Email?": {
+      "main": [
+        [
+          {
+            "node": "OpenAI — Extract Financial Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Non-Financial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI — Extract Financial Data": {
+      "main": [
+        [
+          {
+            "node": "Build Finvora Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Finvora Payload": {
+      "main": [
+        [
+          {
+            "node": "POST to Finvora Backend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "executionTimeout": 300,
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["finvora", "gmail", "finance", "automation"],
+  "triggerCount": 0,
+  "updatedAt": "2026-05-20T00:00:00.000Z",
+  "versionId": "1"
+}
