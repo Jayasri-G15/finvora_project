@@ -23,8 +23,10 @@ out/
 # Environment secrets — NEVER commit these
 .env
 .env.*
+*.env
 !.env.example
 !.env.local.example
+frontend/.env.local
 
 # OS
 .DS_Store
