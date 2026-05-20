@@ -14,19 +14,20 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    // No className here — ThemeToggle manages 'dark'/'light' class client-side
+    // :root is dark by default, .light class activates light mode
+    <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans`}>
         <QueryProvider>
           <AuthProvider>
             {children}
             <Toaster
-              theme="dark"
               position="bottom-right"
               toastOptions={{
                 style: {
-                  background: "rgba(13, 21, 38, 0.95)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  color: "#f8fafc",
+                  background: "hsl(var(--bg-elevated))",
+                  border: "1px solid hsl(var(--border))",
+                  color: "hsl(var(--text-primary))",
                 },
               }}
             />
